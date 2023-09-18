@@ -457,7 +457,7 @@ void run_compute_file_stats(ComputeStatsParams *params)
 
 void run_calibrate(CalibrateParams *params)
 {
-    params->status = calibrate(params->stats, params->outputFile.c_str());
+    params->status = calibrate(params->stats, (const char *)params->outputFile.c_str());
 }
 
 void summarize(const char *outputFile, std::vector<LASFileStats> &stats)
