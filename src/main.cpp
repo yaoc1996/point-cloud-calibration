@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cmath>
 #include <fstream>
 #include <filesystem>
 #include <fstream>
@@ -338,7 +339,7 @@ bool compute_files_stats(Options *options, const char *inputFile, std::vector<Ei
     stats->file = std::filesystem::path(inputFile);
     stats->dz = mdz;
 
-    return !isnan(mdz);
+    return !std::isnan(mdz);
 }
 
 // void computeOverlaps(std::vector<LASFileStats> &fileStats, std::vector<std::vector<int>> &overlapGraph)
