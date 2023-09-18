@@ -43,9 +43,9 @@
 #include <set>
 
 #ifdef UNORDERED
-// Figure out whether <std::unordered_map> is in tr1
+// Figure out whether <unordered_map> is in tr1
 #ifdef __has_include
-#if __has_include(<std::unordered_map>)
+#if __has_include(<unordered_map>)
 #include <unordered_map>
 
 #define UNORDERED_FOUND
