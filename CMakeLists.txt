@@ -10,7 +10,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${CMAKE_BINARY_DIR}/../bin)
 if (!MSVC)
 	add_compile_options(-O3 -Wall -Wno-strict-aliasing -Werror -Wextra -Wpedantic)
 else()
-	add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+	add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_HAS_STD_BYTE=0)
 endif()
 
 option(BUILD_SHARED_LIBS "Build LASlib as DLL" OFF)
