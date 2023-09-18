@@ -580,7 +580,7 @@ int main(int argc, const char *argv[])
 
         logger << "\t";
 
-        if (isnan(fileStats[i].dz))
+        if (std::isnan(fileStats[i].dz))
         {
             logger << "No control points found. Skipped";
         }
