@@ -41,38 +41,37 @@
 
 #include <map>
 #include <set>
-using namespace std;
 
 #ifdef UNORDERED
-// Figure out whether <unordered_map> is in tr1
-#  ifdef __has_include
-#    if __has_include(<unordered_map>)
-#     include <unordered_map>
-      using namespace std;
-#     define UNORDERED_FOUND
-#    endif
-#  endif
-#  ifdef HAVE_UNORDERED_MAP
-#     include <unordered_map>
-      using namespace std;
-#  elif defined(UNORDERED_FOUND)
-#    include <tr1/unordered_map>
-    using namespace std;
-    using namespace tr1;
-#  endif
-typedef unordered_map<I32, LASintervalStartCell*> my_cell_hash;
+// Figure out whether <std::unordered_map> is in tr1
+#ifdef __has_include
+#if __has_include(<std::unordered_map>)
+#include <unordered_map>
+
+#define UNORDERED_FOUND
+#endif
+#endif
+#ifdef HAVE_UNORDERED_MAP
+#include <unordered_map>
+
+#elif defined(UNORDERED_FOUND)
+#include <tr1/unordered_map>
+
+using namespace tr1;
+#endif
+typedef std::unordered_map<I32, LASintervalStartCell *> my_cell_hash;
 #elif defined(LZ_WIN32_VC6)
 #include <hash_map>
-using namespace std;
-typedef hash_map<I32, LASintervalStartCell*> my_cell_hash;
+
+typedef hash_map<I32, LASintervalStartCell *> my_cell_hash;
 #else
 #include <unordered_map>
-using namespace std;
-typedef unordered_map<I32, LASintervalStartCell*> my_cell_hash;
+
+typedef std::unordered_map<I32, LASintervalStartCell *> my_cell_hash;
 #endif
 
-typedef multimap<U32, LASintervalCell*> my_cell_map;
-typedef set<LASintervalStartCell*> my_cell_set;
+typedef std::multimap<U32, LASintervalCell *> my_cell_map;
+typedef std::set<LASintervalStartCell *> my_cell_set;
 
 LASintervalCell::LASintervalCell()
 {
@@ -88,7 +87,7 @@ LASintervalCell::LASintervalCell(const U32 p_index)
   next = 0;
 }
 
-LASintervalCell::LASintervalCell(const LASintervalCell* cell)
+LASintervalCell::LASintervalCell(const LASintervalCell *cell)
 {
   start = cell->start;
   end = cell->end;
@@ -147,11 +146,11 @@ BOOL LASinterval::add(const U32 p_index, const I32 c_index)
   if (last_cell == 0 || last_index != c_index)
   {
     last_index = c_index;
-    my_cell_hash::iterator hash_element = ((my_cell_hash*)cells)->find(c_index);
-    if (hash_element == ((my_cell_hash*)cells)->end())
+    my_cell_hash::iterator hash_element = ((my_cell_hash *)cells)->find(c_index);
+    if (hash_element == ((my_cell_hash *)cells)->end())
     {
       last_cell = new LASintervalStartCell(p_index);
-      ((my_cell_hash*)cells)->insert(my_cell_hash::value_type(c_index, last_cell));
+      ((my_cell_hash *)cells)->insert(my_cell_hash::value_type(c_index, last_cell));
       number_intervals++;
       return TRUE;
     }
@@ -168,7 +167,7 @@ BOOL LASinterval::add(const U32 p_index, const I32 c_index)
 // get total number of cells
 U32 LASinterval::get_number_cells() const
 {
-  return (U32)((my_cell_hash*)cells)->size();
+  return (U32)((my_cell_hash *)cells)->size();
 }
 
 // get total number of intervals
@@ -178,28 +177,30 @@ U32 LASinterval::get_number_intervals() const
 }
 
 // merge cells (and their intervals) into one cell
-BOOL LASinterval::merge_cells(const U32 num_indices, const I32* indices, const I32 new_index)
+BOOL LASinterval::merge_cells(const U32 num_indices, const I32 *indices, const I32 new_index)
 {
   U32 i;
   if (num_indices == 1)
   {
-    my_cell_hash::iterator hash_element = ((my_cell_hash*)cells)->find(indices[0]);
-    if (hash_element == ((my_cell_hash*)cells)->end())
+    my_cell_hash::iterator hash_element = ((my_cell_hash *)cells)->find(indices[0]);
+    if (hash_element == ((my_cell_hash *)cells)->end())
     {
       return FALSE;
     }
-    ((my_cell_hash*)cells)->insert(my_cell_hash::value_type(new_index, (*hash_element).second));
-    ((my_cell_hash*)cells)->erase(hash_element);
+    ((my_cell_hash *)cells)->insert(my_cell_hash::value_type(new_index, (*hash_element).second));
+    ((my_cell_hash *)cells)->erase(hash_element);
   }
   else
   {
-    if (cells_to_merge) ((my_cell_set*)cells_to_merge)->clear();
+    if (cells_to_merge)
+      ((my_cell_set *)cells_to_merge)->clear();
     for (i = 0; i < num_indices; i++)
     {
       add_cell_to_merge_cell_set(indices[i], TRUE);
     }
-    if (!merge(TRUE)) return FALSE;
-    ((my_cell_hash*)cells)->insert(my_cell_hash::value_type(new_index, merged_cells));
+    if (!merge(TRUE))
+      return FALSE;
+    ((my_cell_hash *)cells)->insert(my_cell_hash::value_type(new_index, merged_cells));
     merged_cells = 0;
   }
   return TRUE;
@@ -209,8 +210,8 @@ BOOL LASinterval::merge_cells(const U32 num_indices, const I32* indices, const I
 void LASinterval::merge_intervals(U32 maximum_intervals, const BOOL verbose)
 {
   U32 diff;
-  LASintervalCell* cell;
-  LASintervalCell* delete_cell;
+  LASintervalCell *cell;
+  LASintervalCell *delete_cell;
 
   // each cell has minimum one interval
 
@@ -226,8 +227,8 @@ void LASinterval::merge_intervals(U32 maximum_intervals, const BOOL verbose)
   // order intervals by smallest gap
 
   my_cell_map map;
-  my_cell_hash::iterator hash_element = ((my_cell_hash*)cells)->begin();
-  while (hash_element != ((my_cell_hash*)cells)->end())
+  my_cell_hash::iterator hash_element = ((my_cell_hash *)cells)->begin();
+  while (hash_element != ((my_cell_hash *)cells)->end())
   {
     cell = (*hash_element).second;
     while (cell->next)
@@ -246,12 +247,12 @@ void LASinterval::merge_intervals(U32 maximum_intervals, const BOOL verbose)
     {
       if (map.size() == 0)
       {
-        fprintf(stderr,"maximum_intervals: %u number of interval gaps: 0 \n", maximum_intervals);
+        fprintf(stderr, "maximum_intervals: %u number of interval gaps: 0 \n", maximum_intervals);
       }
       else
       {
         diff = (*(map.begin())).first;
-        fprintf(stderr,"maximum_intervals: %u number of interval gaps: %u next largest interval gap %u\n", maximum_intervals, (U32)map.size(), diff);
+        fprintf(stderr, "maximum_intervals: %u number of interval gaps: %u next largest interval gap %u\n", maximum_intervals, (U32)map.size(), diff);
       }
     }
     return;
@@ -279,7 +280,8 @@ void LASinterval::merge_intervals(U32 maximum_intervals, const BOOL verbose)
       if (cell->next)
       {
         map.insert(my_cell_map::value_type(cell->next->start - cell->end - 1, cell));
-        delete_cell->start = 1; delete_cell->end = 0; // the (start == 1 && end == 0) signals that the cell is to be deleted
+        delete_cell->start = 1;
+        delete_cell->end = 0; // the (start == 1 && end == 0) signals that the cell is to be deleted
       }
       else
       {
@@ -292,7 +294,8 @@ void LASinterval::merge_intervals(U32 maximum_intervals, const BOOL verbose)
   map_element = map.begin();
   while (true)
   {
-    if (map_element == map.end()) break;
+    if (map_element == map.end())
+      break;
     cell = (*map_element).second;
     if ((cell->start == 1) && (cell->end == 0)) // the (start == 1 && end == 0) signals that the cell is to be deleted
     {
@@ -301,13 +304,14 @@ void LASinterval::merge_intervals(U32 maximum_intervals, const BOOL verbose)
     }
     map_element++;
   }
-  if (verbose) fprintf(stderr,"largest interval gap increased to %u\n", diff);
+  if (verbose)
+    fprintf(stderr, "largest interval gap increased to %u\n", diff);
 
   // update totals
 
-  LASintervalStartCell* start_cell;
-  hash_element = ((my_cell_hash*)cells)->begin();
-  while (hash_element != ((my_cell_hash*)cells)->end())
+  LASintervalStartCell *start_cell;
+  hash_element = ((my_cell_hash *)cells)->begin();
+  while (hash_element != ((my_cell_hash *)cells)->end())
   {
     start_cell = (*hash_element).second;
     start_cell->total = 0;
@@ -332,14 +336,14 @@ BOOL LASinterval::has_cells()
   my_cell_hash::iterator hash_element;
   if (last_index == I32_MIN)
   {
-    hash_element = ((my_cell_hash*)cells)->begin();
+    hash_element = ((my_cell_hash *)cells)->begin();
   }
   else
   {
-    hash_element = ((my_cell_hash*)cells)->find(last_index);
+    hash_element = ((my_cell_hash *)cells)->find(last_index);
     hash_element++;
   }
-  if (hash_element == ((my_cell_hash*)cells)->end())
+  if (hash_element == ((my_cell_hash *)cells)->end())
   {
     last_index = I32_MIN;
     current_cell = 0;
@@ -355,8 +359,8 @@ BOOL LASinterval::has_cells()
 
 BOOL LASinterval::get_cell(const I32 c_index)
 {
-  my_cell_hash::iterator hash_element = ((my_cell_hash*)cells)->find(c_index);
-  if (hash_element == ((my_cell_hash*)cells)->end())
+  my_cell_hash::iterator hash_element = ((my_cell_hash *)cells)->find(c_index);
+  if (hash_element == ((my_cell_hash *)cells)->end())
   {
     current_cell = 0;
     return FALSE;
@@ -376,25 +380,26 @@ BOOL LASinterval::add_current_cell_to_merge_cell_set()
   }
   if (cells_to_merge == 0)
   {
-    cells_to_merge = (void*) new my_cell_set;
+    cells_to_merge = (void *)new my_cell_set;
   }
-  ((my_cell_set*)cells_to_merge)->insert((LASintervalStartCell*)current_cell);
+  ((my_cell_set *)cells_to_merge)->insert((LASintervalStartCell *)current_cell);
   return TRUE;
 }
 
 BOOL LASinterval::add_cell_to_merge_cell_set(const I32 c_index, const BOOL erase)
 {
-  my_cell_hash::iterator hash_element = ((my_cell_hash*)cells)->find(c_index);
-  if (hash_element == ((my_cell_hash*)cells)->end())
+  my_cell_hash::iterator hash_element = ((my_cell_hash *)cells)->find(c_index);
+  if (hash_element == ((my_cell_hash *)cells)->end())
   {
     return FALSE;
   }
   if (cells_to_merge == 0)
   {
-    cells_to_merge = (void*) new my_cell_set;
+    cells_to_merge = (void *)new my_cell_set;
   }
-  ((my_cell_set*)cells_to_merge)->insert((*hash_element).second);
-  if (erase) ((my_cell_hash*)cells)->erase(hash_element);
+  ((my_cell_set *)cells_to_merge)->insert((*hash_element).second);
+  if (erase)
+    ((my_cell_hash *)cells)->erase(hash_element);
   return TRUE;
 }
 
@@ -405,8 +410,8 @@ BOOL LASinterval::merge(const BOOL erase)
   {
     if (merged_cells_temporary)
     {
-      LASintervalCell* next_next;
-      LASintervalCell* next = merged_cells->next;
+      LASintervalCell *next_next;
+      LASintervalCell *next = merged_cells->next;
       while (next)
       {
         next_next = next->next;
@@ -418,14 +423,16 @@ BOOL LASinterval::merge(const BOOL erase)
     merged_cells = 0;
   }
   // are there cells to merge
-  if (cells_to_merge == 0) return FALSE;
-  if (((my_cell_set*)cells_to_merge)->size() == 0) return FALSE;
+  if (cells_to_merge == 0)
+    return FALSE;
+  if (((my_cell_set *)cells_to_merge)->size() == 0)
+    return FALSE;
   // is there just one cell
-  if (((my_cell_set*)cells_to_merge)->size() == 1)
+  if (((my_cell_set *)cells_to_merge)->size() == 1)
   {
     merged_cells_temporary = FALSE;
     // simply use this cell as the merge cell
-    my_cell_set::iterator set_element = ((my_cell_set*)cells_to_merge)->begin();
+    my_cell_set::iterator set_element = ((my_cell_set *)cells_to_merge)->begin();
     merged_cells = (*set_element);
   }
   else
@@ -433,14 +440,15 @@ BOOL LASinterval::merge(const BOOL erase)
     merged_cells_temporary = TRUE;
     merged_cells = new LASintervalStartCell();
     // iterate over all cells and add their intervals to map
-    LASintervalCell* cell;
+    LASintervalCell *cell;
     my_cell_map map;
-    my_cell_set::iterator set_element = ((my_cell_set*)cells_to_merge)->begin();
+    my_cell_set::iterator set_element = ((my_cell_set *)cells_to_merge)->begin();
     while (true)
     {
-      if (set_element == ((my_cell_set*)cells_to_merge)->end()) break;
+      if (set_element == ((my_cell_set *)cells_to_merge)->end())
+        break;
       cell = (*set_element);
-      merged_cells->full += ((LASintervalStartCell*)cell)->full;
+      merged_cells->full += ((LASintervalStartCell *)cell)->full;
       while (cell)
       {
         map.insert(my_cell_map::value_type(cell->start, cell));
@@ -455,9 +463,10 @@ BOOL LASinterval::merge(const BOOL erase)
     merged_cells->start = cell->start;
     merged_cells->end = cell->end;
     merged_cells->total = cell->end - cell->start + 1;
-    if (erase) delete cell;
+    if (erase)
+      delete cell;
     // merge intervals
-    LASintervalCell* last_cell = merged_cells;
+    LASintervalCell *last_cell = merged_cells;
     I32 diff;
     while (map.size())
     {
@@ -481,7 +490,8 @@ BOOL LASinterval::merge(const BOOL erase)
         }
         number_intervals--;
       }
-      if (erase) delete cell;
+      if (erase)
+        delete cell;
     }
   }
   current_cell = merged_cells;
@@ -494,7 +504,7 @@ void LASinterval::clear_merge_cell_set()
 {
   if (cells_to_merge)
   {
-    ((my_cell_set*)cells_to_merge)->clear();
+    ((my_cell_set *)cells_to_merge)->clear();
   }
 }
 
@@ -538,11 +548,11 @@ LASinterval::LASinterval(const U32 threshold)
 LASinterval::~LASinterval()
 {
   // loop over all cells
-  my_cell_hash::iterator hash_element = ((my_cell_hash*)cells)->begin();
-  while (hash_element != ((my_cell_hash*)cells)->end())
+  my_cell_hash::iterator hash_element = ((my_cell_hash *)cells)->begin();
+  while (hash_element != ((my_cell_hash *)cells)->end())
   {
-    LASintervalCell* previous_cell = (*hash_element).second;
-    LASintervalCell* cell = previous_cell->next;
+    LASintervalCell *previous_cell = (*hash_element).second;
+    LASintervalCell *cell = previous_cell->next;
     while (cell)
     {
       delete previous_cell;
@@ -552,14 +562,14 @@ LASinterval::~LASinterval()
     delete previous_cell;
     hash_element++;
   }
-  delete ((my_cell_hash*)cells);
+  delete ((my_cell_hash *)cells);
   // maybe delete temporary merge cells from the previous merge
   if (merged_cells)
   {
     if (merged_cells_temporary)
     {
-      LASintervalCell* next_next;
-      LASintervalCell* next = merged_cells->next;
+      LASintervalCell *next_next;
+      LASintervalCell *next = merged_cells->next;
       while (next)
       {
         next_next = next->next;
@@ -570,33 +580,46 @@ LASinterval::~LASinterval()
     }
     merged_cells = 0;
   }
-  if (cells_to_merge) delete ((my_cell_set*)cells_to_merge);
+  if (cells_to_merge)
+    delete ((my_cell_set *)cells_to_merge);
 }
 
-BOOL LASinterval::read(ByteStreamIn* stream)
+BOOL LASinterval::read(ByteStreamIn *stream)
 {
   char signature[4];
-  try { stream->getBytes((U8*)signature, 4); } catch (...)
+  try
   {
-    fprintf(stderr,"ERROR (LASinterval): reading signature\n");
+    stream->getBytes((U8 *)signature, 4);
+  }
+  catch (...)
+  {
+    fprintf(stderr, "ERROR (LASinterval): reading signature\n");
     return FALSE;
   }
   if (strncmp(signature, "LASV", 4) != 0)
   {
-    fprintf(stderr,"ERROR (LASinterval): wrong signature %4s instead of 'LASV'\n", signature);
+    fprintf(stderr, "ERROR (LASinterval): wrong signature %4s instead of 'LASV'\n", signature);
     return FALSE;
   }
   U32 version;
-  try { stream->get32bitsLE((U8*)&version); } catch (...)
+  try
   {
-    fprintf(stderr,"ERROR (LASinterval): reading version\n");
+    stream->get32bitsLE((U8 *)&version);
+  }
+  catch (...)
+  {
+    fprintf(stderr, "ERROR (LASinterval): reading version\n");
     return FALSE;
   }
   // read number of cells
   U32 number_cells;
-  try { stream->get32bitsLE((U8*)&number_cells); } catch (...)
+  try
   {
-    fprintf(stderr,"ERROR (LASinterval): reading number of cells\n");
+    stream->get32bitsLE((U8 *)&number_cells);
+  }
+  catch (...)
+  {
+    fprintf(stderr, "ERROR (LASinterval): reading number of cells\n");
     return FALSE;
   }
   // loop over all cells
@@ -604,27 +627,39 @@ BOOL LASinterval::read(ByteStreamIn* stream)
   {
     // read index of cell
     I32 cell_index;
-    try { stream->get32bitsLE((U8*)&cell_index); } catch (...)
+    try
     {
-      fprintf(stderr,"ERROR (LASinterval): reading cell index\n");
+      stream->get32bitsLE((U8 *)&cell_index);
+    }
+    catch (...)
+    {
+      fprintf(stderr, "ERROR (LASinterval): reading cell index\n");
       return FALSE;
     }
     // create cell and insert into hash
-    LASintervalStartCell* start_cell = new LASintervalStartCell();
-    ((my_cell_hash*)cells)->insert(my_cell_hash::value_type(cell_index, start_cell));
-    LASintervalCell* cell = start_cell;
+    LASintervalStartCell *start_cell = new LASintervalStartCell();
+    ((my_cell_hash *)cells)->insert(my_cell_hash::value_type(cell_index, start_cell));
+    LASintervalCell *cell = start_cell;
     // read number of intervals in cell
     U32 number_intervals;
-    try { stream->get32bitsLE((U8*)&number_intervals); } catch (...)
+    try
     {
-      fprintf(stderr,"ERROR (LASinterval): reading number of intervals in cell\n");
+      stream->get32bitsLE((U8 *)&number_intervals);
+    }
+    catch (...)
+    {
+      fprintf(stderr, "ERROR (LASinterval): reading number of intervals in cell\n");
       return FALSE;
     }
     // read number of points in cell
     U32 number_points;
-    try { stream->get32bitsLE((U8*)&number_points); } catch (...)
+    try
     {
-      fprintf(stderr,"ERROR (LASinterval): reading number of points in cell\n");
+      stream->get32bitsLE((U8 *)&number_points);
+    }
+    catch (...)
+    {
+      fprintf(stderr, "ERROR (LASinterval): reading number of points in cell\n");
       return FALSE;
     }
     start_cell->full = number_points;
@@ -632,15 +667,23 @@ BOOL LASinterval::read(ByteStreamIn* stream)
     while (number_intervals)
     {
       // read start of interval
-      try { stream->get32bitsLE((U8*)&(cell->start)); } catch (...)
+      try
       {
-        fprintf(stderr,"ERROR (LASinterval): reading start %d of interval\n", cell->start);
+        stream->get32bitsLE((U8 *)&(cell->start));
+      }
+      catch (...)
+      {
+        fprintf(stderr, "ERROR (LASinterval): reading start %d of interval\n", cell->start);
         return FALSE;
       }
       // read end of interval
-      try { stream->get32bitsLE((U8*)&(cell->end)); } catch (...)
+      try
       {
-        fprintf(stderr,"ERROR (LASinterval): reading end %d of interval\n", cell->end);
+        stream->get32bitsLE((U8 *)&(cell->end));
+      }
+      catch (...)
+      {
+        fprintf(stderr, "ERROR (LASinterval): reading end %d of interval\n", cell->end);
         return FALSE;
       }
       start_cell->total += (cell->end - cell->start + 1);
@@ -657,34 +700,34 @@ BOOL LASinterval::read(ByteStreamIn* stream)
   return TRUE;
 }
 
-BOOL LASinterval::write(ByteStreamOut* stream) const
+BOOL LASinterval::write(ByteStreamOut *stream) const
 {
-  if (!stream->putBytes((const U8*)"LASV", 4))
+  if (!stream->putBytes((const U8 *)"LASV", 4))
   {
-    fprintf(stderr,"ERROR (LASinterval): writing signature\n");
+    fprintf(stderr, "ERROR (LASinterval): writing signature\n");
     return FALSE;
   }
   U32 version = 0;
-  if (!stream->put32bitsLE((const U8*)&version))
+  if (!stream->put32bitsLE((const U8 *)&version))
   {
-    fprintf(stderr,"ERROR (LASinterval): writing version\n");
+    fprintf(stderr, "ERROR (LASinterval): writing version\n");
     return FALSE;
   }
   // write number of cells
-  U32 number_cells = (U32)((my_cell_hash*)cells)->size();
-  if (!stream->put32bitsLE((const U8*)&number_cells))
+  U32 number_cells = (U32)((my_cell_hash *)cells)->size();
+  if (!stream->put32bitsLE((const U8 *)&number_cells))
   {
-    fprintf(stderr,"ERROR (LASinterval): writing number of cells %d\n", number_cells);
+    fprintf(stderr, "ERROR (LASinterval): writing number of cells %d\n", number_cells);
     return FALSE;
   }
   // loop over all cells
-  my_cell_hash::iterator hash_element = ((my_cell_hash*)cells)->begin();
-  while (hash_element != ((my_cell_hash*)cells)->end())
+  my_cell_hash::iterator hash_element = ((my_cell_hash *)cells)->begin();
+  while (hash_element != ((my_cell_hash *)cells)->end())
   {
-    LASintervalCell* cell = (*hash_element).second;
+    LASintervalCell *cell = (*hash_element).second;
     // count number of intervals and points in cell
     U32 number_intervals = 0;
-    U32 number_points = ((LASintervalStartCell*)cell)->full;
+    U32 number_points = ((LASintervalStartCell *)cell)->full;
     while (cell)
     {
       number_intervals++;
@@ -692,21 +735,21 @@ BOOL LASinterval::write(ByteStreamOut* stream) const
     }
     // write index of cell
     I32 cell_index = (*hash_element).first;
-    if (!stream->put32bitsLE((const U8*)&cell_index))
+    if (!stream->put32bitsLE((const U8 *)&cell_index))
     {
-      fprintf(stderr,"ERROR (LASinterval): writing cell index %d\n", cell_index);
+      fprintf(stderr, "ERROR (LASinterval): writing cell index %d\n", cell_index);
       return FALSE;
     }
     // write number of intervals in cell
-    if (!stream->put32bitsLE((const U8*)&number_intervals))
+    if (!stream->put32bitsLE((const U8 *)&number_intervals))
     {
-      fprintf(stderr,"ERROR (LASinterval): writing number of intervals %d in cell\n", number_intervals);
+      fprintf(stderr, "ERROR (LASinterval): writing number of intervals %d in cell\n", number_intervals);
       return FALSE;
     }
     // write number of points in cell
-    if (!stream->put32bitsLE((const U8*)&number_points))
+    if (!stream->put32bitsLE((const U8 *)&number_points))
     {
-      fprintf(stderr,"ERROR (LASinterval): writing number of points %d in cell\n", number_points);
+      fprintf(stderr, "ERROR (LASinterval): writing number of points %d in cell\n", number_points);
       return FALSE;
     }
     // write intervals
@@ -714,15 +757,15 @@ BOOL LASinterval::write(ByteStreamOut* stream) const
     while (cell)
     {
       // write start of interval
-      if (!stream->put32bitsLE((const U8*)&(cell->start)))
+      if (!stream->put32bitsLE((const U8 *)&(cell->start)))
       {
-        fprintf(stderr,"ERROR (LASinterval): writing start %d of interval\n", cell->start);
+        fprintf(stderr, "ERROR (LASinterval): writing start %d of interval\n", cell->start);
         return FALSE;
       }
       // write end of interval
-      if (!stream->put32bitsLE((const U8*)&(cell->end)))
+      if (!stream->put32bitsLE((const U8 *)&(cell->end)))
       {
-        fprintf(stderr,"ERROR (LASinterval): writing end %d of interval\n", cell->end);
+        fprintf(stderr, "ERROR (LASinterval): writing end %d of interval\n", cell->end);
         return FALSE;
       }
       cell = cell->next;

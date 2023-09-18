@@ -2,11 +2,11 @@
 ===============================================================================
 
   FILE:  laskdtree.hpp
-  
+
   CONTENTS:
-  
+
     Tree structure for fast overlap checks of points or rectangles with list
-    of rectangles 
+    of rectangles
 
   PROGRAMMERS:
 
@@ -22,12 +22,12 @@
 
     This software is distributed WITHOUT ANY WARRANTY and without even the
     implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  
+
   CHANGE HISTORY:
-  
+
     26 June 2021 -- new LASkdtreePoint after four weeks of memoy pain in Samara
     26 October 2019 -- created at LoCoworking after three days of rain in Samara
-  
+
 ===============================================================================
 */
 #ifndef LAS_KD_TREE_HPP
@@ -40,9 +40,8 @@
 
 #include <list>
 #include <set>
-using namespace std;
 
-typedef set<U32> my_index_set;
+typedef std::set<U32> my_index_set;
 
 class LASkdtreeRectangle
 {
@@ -69,15 +68,15 @@ public:
   LASkdtreePoint(F64 x, F64 y);
 };
 
-typedef list<LASkdtreeRectangle> my_rectangle_list;
+typedef std::list<LASkdtreeRectangle> my_rectangle_list;
 
 class LASkdtreeRectanglesNode
 {
 public:
   F64 split;
-  LASkdtreeRectanglesNode* left;
-  LASkdtreeRectanglesNode* right;
-  my_rectangle_list* list;
+  LASkdtreeRectanglesNode *left;
+  LASkdtreeRectanglesNode *right;
+  my_rectangle_list *list;
 
   LASkdtreeRectanglesNode();
   ~LASkdtreeRectanglesNode();
@@ -95,21 +94,22 @@ public:
   BOOL overlap(F64 x, F64 y);                               // point
   void print_overlap();
   BOOL has_overlaps();
-  BOOL get_overlap(U32& index);
+  BOOL get_overlap(U32 &index);
 
   LASkdtreeRectangles();
   ~LASkdtreeRectangles();
+
 private:
   U32 num_rectangles;
   LASkdtreeRectangle bb;
-  my_rectangle_list* rectangle_list;
-  LASkdtreeRectanglesNode* root;
-  my_index_set* overlap_set;
+  my_rectangle_list *rectangle_list;
+  LASkdtreeRectanglesNode *root;
+  my_index_set *overlap_set;
   my_index_set::iterator set_element;
 
-  void build_recursive(LASkdtreeRectanglesNode* node, I32 plane, LASkdtreeRectangle bb, my_rectangle_list* insertion_list, I32 unchanged);
-  void overlap_rectangles(LASkdtreeRectanglesNode* node, I32 plane, LASkdtreeRectangle rectangle, my_index_set* overlap_set);
-  void overlap_rectangles(LASkdtreeRectanglesNode* node, I32 plane, LASkdtreePoint point, my_index_set* overlap_set);
+  void build_recursive(LASkdtreeRectanglesNode *node, I32 plane, LASkdtreeRectangle bb, my_rectangle_list *insertion_list, I32 unchanged);
+  void overlap_rectangles(LASkdtreeRectanglesNode *node, I32 plane, LASkdtreeRectangle rectangle, my_index_set *overlap_set);
+  void overlap_rectangles(LASkdtreeRectanglesNode *node, I32 plane, LASkdtreePoint point, my_index_set *overlap_set);
 };
 
 #endif
