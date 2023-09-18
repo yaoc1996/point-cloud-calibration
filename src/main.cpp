@@ -10,6 +10,7 @@
 #include <limits>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <Eigen/Dense>
@@ -35,6 +36,7 @@ struct Options
     int samplingRate = LAS_SAMPLING_RATE;
     float angleThresh = ANGLE_THRESH;
     float distThresh = DIST_THRESH;
+    int maxThreads = std::thread::hardware_concurrency();
 };
 
 struct LASFileStats
@@ -105,6 +107,8 @@ void help()
               << "angle threshold in degrees for control point detection (default: " << (int)round(ANGLE_THRESH * 180 / M_PI) << ")" << std::endl;
     std::cout << "\t" << std::left << std::setw(10) << "-d"
               << "distance threshold in feet for control point detection (default: " << DIST_THRESH << ")" << std::endl;
+    std::cout << "\t" << std::left << std::setw(10) << "-t"
+              << "maximum number of concurrent processing threads (default: " << std::thread::hardware_concurrency() << ")" << std::endl;
 }
 
 void parseArgs(int argc, const char *argv[], Options *options)
@@ -138,6 +142,10 @@ void parseArgs(int argc, const char *argv[], Options *options)
         else if (strcmp(arg, "-d") == 0)
         {
             options->distThresh = std::stof(argv[i + 1]);
+        }
+        else if (strcmp(arg, "-t") == 0)
+        {
+            options->maxThreads = std::stoi(argv[i + 1]);
         }
         else if (strcmp(arg, "-h") == 0)
         {
@@ -173,7 +181,7 @@ void read_control_points(const char *file, std::vector<Eigen::Vector3f> &output)
     }
 }
 
-bool compute_files_stats(Options *options, const char *inputFile, std::vector<Eigen::Vector3f> &controlPoints, LASFileStats *stats)
+bool compute_files_stats(Options *options, const char *inputFile, Eigen::Vector3f *controlPoints, int nControlPoints, LASFileStats *stats)
 {
     LASreadOpener readOpener;
     readOpener.set_file_name(inputFile);
@@ -220,9 +228,9 @@ bool compute_files_stats(Options *options, const char *inputFile, std::vector<Ei
     std::vector<float> dzs;
     const Eigen::Vector3f up(0, 0, 1);
 
-    for (int i = 0; i < controlPoints.size(); ++i)
+    for (int i = 0; i < nControlPoints; ++i)
     {
-        Eigen::Vector3f *controlPoint = controlPoints.data() + i;
+        Eigen::Vector3f *controlPoint = controlPoints + i;
 
         if (controlPoint->x() < minBound.x() || controlPoint->x() > maxBound.x() ||
             controlPoint->y() < minBound.y() || controlPoint->y() > maxBound.y() ||
@@ -425,6 +433,33 @@ bool calibrate(LASFileStats *stats, const char *outputFile)
     return true;
 }
 
+struct ComputeStatsParams
+{
+    std::filesystem::path inputFile;
+    int nControlPoints;
+    Eigen::Vector3f *controlPoints;
+    Options *options;
+    LASFileStats *stats;
+    bool status;
+};
+
+struct CalibrateParams
+{
+    std::filesystem::path outputFile;
+    LASFileStats *stats;
+    bool status;
+};
+
+void run_compute_file_stats(ComputeStatsParams *params)
+{
+    params->status = compute_files_stats(params->options, (const char *)params->inputFile.c_str(), params->controlPoints, params->nControlPoints, params->stats);
+}
+
+void run_calibrate(CalibrateParams *params)
+{
+    params->status = calibrate(params->stats, params->outputFile.c_str());
+}
+
 void summarize(const char *outputFile, std::vector<LASFileStats> &stats)
 {
     std::ofstream outStream(outputFile);
@@ -441,6 +476,7 @@ void summarize(const char *outputFile, std::vector<LASFileStats> &stats)
 
 int main(int argc, const char *argv[])
 {
+
     Options options;
     parseArgs(argc, argv, &options);
 
@@ -501,6 +537,8 @@ int main(int argc, const char *argv[])
            << "\n";
     logger << "Distance threshold: " << options.distThresh << "ft"
            << "\n";
+    logger << "Using " << options.maxThreads << " threads"
+           << "\n";
 
     std::vector<std::filesystem::path> inputFiles;
 
@@ -533,28 +571,70 @@ int main(int argc, const char *argv[])
     logger << "Processed control points from " << controlFile.c_str() << "\n";
 
     std::vector<LASFileStats> fileStats(inputFiles.size());
+    std::vector<ComputeStatsParams> computeStatsParams(inputFiles.size());
+    std::vector<CalibrateParams> calibrateParams(inputFiles.size());
     // std::vector<std::vector<int>> overlapGraph;
 
     logger << "Computing calibration stats"
            << "\n";
 
+    std::vector<std::thread *> threads(inputFiles.size());
+
     for (int i = 0; i < fileStats.size(); ++i)
     {
         std::filesystem::path inputFile = inputDir / inputFiles[i];
+        std::string outputFileName;
+        outputFileName += (const char *)inputFiles[i].stem().c_str();
+        outputFileName += ".calibrated";
+        outputFileName += (const char *)inputFiles[i].extension().c_str();
+        std::filesystem::path outputFile = outputDir / std::filesystem::path(outputFileName);
 
-        logger << "\t";
+        ComputeStatsParams *computeStatsParam = computeStatsParams.data() + i;
+        computeStatsParam->options = &options;
+        computeStatsParam->inputFile = inputFile;
+        computeStatsParam->controlPoints = controlPoints.data();
+        computeStatsParam->nControlPoints = controlPoints.size();
+        computeStatsParam->stats = fileStats.data() + i;
 
-        if (!compute_files_stats(&options, (const char *)inputFile.c_str(), controlPoints, &fileStats[i]))
+        CalibrateParams *calibrateParam = calibrateParams.data() + i;
+        calibrateParam->stats = fileStats.data() + i;
+        calibrateParam->outputFile = outputFile;
+    }
+
+    int ti;
+
+    ti = 0;
+
+    while (ti < fileStats.size())
+    {
+        int ei = std::min(ti + options.maxThreads, (int)fileStats.size());
+
+        for (int i = ti; i < ei; ++i)
         {
-            logger << "Failed to compute stats for";
-        }
-        else
-        {
-            logger << "Computed stats for";
+            threads[i] = new std::thread(run_compute_file_stats, computeStatsParams.data() + i);
         }
 
-        logger << " " << inputFiles[i].c_str() << " (" << i + 1 << "/" << fileStats.size() << ")"
-               << "\n";
+        for (int i = ti; i < ei; ++i)
+        {
+            threads[i]->join();
+            delete threads[i];
+
+            logger << "\t";
+
+            if (!computeStatsParams[i].status)
+            {
+                logger << "Failed to compute stats for";
+            }
+            else
+            {
+                logger << "Computed stats for";
+            }
+
+            logger << " " << inputFiles[i].c_str() << " (" << i + 1 << "/" << fileStats.size() << ")"
+                   << "\n";
+        }
+
+        ti = ei;
     }
 
     logger << "Computed calibration values:"
@@ -569,35 +649,58 @@ int main(int argc, const char *argv[])
 
     logger << "Applying calibration values"
            << "\n";
-    for (int i = 0; i < fileStats.size(); ++i)
+
+    ti = 0;
+
+    while (ti < fileStats.size())
     {
-        std::string filename;
-        filename += (const char *)inputFiles[i].stem().c_str();
-        filename += ".calibrated";
-        filename += (const char *)inputFiles[i].extension().c_str();
+        int ei = std::min(ti + options.maxThreads, (int)fileStats.size());
 
-        std::filesystem::path outputFile = outputDir / std::filesystem::path(filename);
-
-        logger << "\t";
-
-        if (std::isnan(fileStats[i].dz))
+        for (int i = ti; i < ei; ++i)
         {
-            logger << "No control points found. Skipped";
-        }
-        else
-        {
-            if (!calibrate(&fileStats[i], (const char *)outputFile.c_str()))
+            if (std::isnan(fileStats[i].dz))
             {
-                logger << "Failed to apply calibration to";
+                threads[i] = nullptr;
             }
             else
             {
-                logger << "Applied calibration to";
+                threads[i] = new std::thread(run_calibrate, calibrateParams.data() + i);
             }
         }
 
-        logger << " " << outputFile.c_str() << " (" << i + 1 << "/" << fileStats.size() << ")"
-               << "\n";
+        for (int i = ti; i < ei; ++i)
+        {
+            bool skipped = threads[i] == nullptr;
+
+            if (threads[i])
+            {
+                threads[i]->join();
+                delete threads[i];
+            }
+
+            logger << "\t";
+
+            if (skipped)
+            {
+                logger << "No control points found. Skipped";
+            }
+            else
+            {
+                if (!calibrateParams[i].status)
+                {
+                    logger << "Failed to apply calibration to";
+                }
+                else
+                {
+                    logger << "Applied calibration to";
+                }
+            }
+
+            logger << " " << calibrateParams[i].outputFile.c_str() << " (" << i + 1 << "/" << fileStats.size() << ")"
+                   << "\n";
+        }
+
+        ti = ei;
     }
 
     logger << "Finished"

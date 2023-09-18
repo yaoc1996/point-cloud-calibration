@@ -48,4 +48,5 @@ Optional:
         -r        sampling rate for computing calibration value (default: 100)
         -a        angle threshold in degrees for control point detection (default: 20)
         -d        distance threshold in feet for control point detection (default: 3)
+        -t        maximum number of concurrent processing threads (default: 12)
 ```
