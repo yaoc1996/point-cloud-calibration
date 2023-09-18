@@ -36,7 +36,7 @@ Run build.bat
 ./bin/calibrate -h
 ```
 
-```bash
+```raw
 Usage:
         ./bin/calibrate -i <input_directory> -c <control_file> [...options]
         ./bin/calibrate -h for more help
