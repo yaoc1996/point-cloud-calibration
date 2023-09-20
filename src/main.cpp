@@ -281,21 +281,19 @@ bool compute_files_stats(Options *options, const char *inputFile, Eigen::Vector3
         for (int j = 0; j < nNbrs; ++j)
         {
             nbrPoints[j] -= centroid;
-            nbrPoints[j] *= 100; // prevent precision issues when performing eigen decomp;
         }
         float xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
 
         for (int j = 0; j < nNbrs; ++j)
         {
-            for (int k = 0; k < nNbrs; ++k)
-            {
-                xx += nbrPoints[j].x() * nbrPoints[k].x();
-                xy += nbrPoints[j].x() * nbrPoints[k].y();
-                xz += nbrPoints[j].x() * nbrPoints[k].z();
-                yy += nbrPoints[j].y() * nbrPoints[k].y();
-                yz += nbrPoints[j].y() * nbrPoints[k].z();
-                zz += nbrPoints[j].z() * nbrPoints[k].z();
-            }
+            Eigen::Vector3f *point = &nbrPoints[j];
+
+            xx += point->x() * point->x();
+            xy += point->x() * point->y();
+            xz += point->x() * point->z();
+            yy += point->y() * point->y();
+            yz += point->y() * point->z();
+            zz += point->z() * point->z();
         }
 
         Eigen::Matrix3f cov;
