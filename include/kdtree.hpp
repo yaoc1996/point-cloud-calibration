@@ -214,16 +214,17 @@ void KDTree<T>::nn_internal(T *point, Node *node, Node **nearestNodePtr, T *near
     if (!node)
         return;
 
-    bool isLeaf = node->is_leaf();
     int splitDim = node->splitDim;
-
-    bool visitedLeft;
 
     Node *nearestChild;
     T nearestChildDist;
 
-    if (!isLeaf)
+    T dist = this->compute_node_point_dist(node, point);
+
+    if (!node->is_leaf())
     {
+        bool visitedLeft;
+
         if (point[splitDim] < node->point[splitDim])
         {
             this->nn_internal(point, node->left, &nearestChild, &nearestChildDist);
@@ -234,35 +235,38 @@ void KDTree<T>::nn_internal(T *point, Node *node, Node **nearestNodePtr, T *near
             this->nn_internal(point, node->right, &nearestChild, &nearestChildDist);
             visitedLeft = false;
         }
+
+
+        if (dist < nearestChildDist)
+        {
+            nearestChild = node;
+            nearestChildDist = dist;
+        }
+
+        if (nearestChildDist > abs(point[splitDim] - node->point[splitDim]))
+        {
+            Node *otherNearestChild;
+            T otherNearestChildDist;
+
+            if (visitedLeft)
+            {
+                this->nn_internal(point, node->right, &otherNearestChild, &otherNearestChildDist);
+            }
+            else
+            {
+                this->nn_internal(point, node->left, &otherNearestChild, &otherNearestChildDist);
+            }
+
+            if (otherNearestChildDist < nearestChildDist)
+            {
+                nearestChild = otherNearestChild;
+                nearestChildDist = otherNearestChildDist;
+            }
+        }
     }
-
-    T dist = this->compute_node_point_dist(node, point);
-
-    if (dist < nearestChildDist)
-    {
+    else {
         nearestChild = node;
         nearestChildDist = dist;
-    }
-
-    if (nearestChildDist > abs(point[splitDim] - node->point[splitDim]))
-    {
-        Node *otherNearestChild;
-        T otherNearestChildDist;
-
-        if (visitedLeft)
-        {
-            this->nn_internal(point, node->right, &otherNearestChild, &otherNearestChildDist);
-        }
-        else
-        {
-            this->nn_internal(point, node->left, &otherNearestChild, &otherNearestChildDist);
-        }
-
-        if (otherNearestChildDist < nearestChildDist)
-        {
-            nearestChild = otherNearestChild;
-            nearestChildDist = otherNearestChildDist;
-        }
     }
 
     *nearestNodePtr = nearestChild;
@@ -278,8 +282,6 @@ void KDTree<T>::knn_internal(int k, T *point, Node *node, std::priority_queue<PQ
     bool isLeaf = node->is_leaf();
     int splitDim = node->splitDim;
 
-    bool visitedLeft;
-
     pq.push(PQEntry(node, this->compute_node_point_dist(node, point)));
 
     if (pq.size() > k)
@@ -287,8 +289,9 @@ void KDTree<T>::knn_internal(int k, T *point, Node *node, std::priority_queue<PQ
         pq.pop();
     }
 
-    if (!isLeaf)
-    {
+    if (!node->is_leaf()) {
+        bool visitedLeft;
+
         if (point[splitDim] < node->point[splitDim])
         {
             this->knn_internal(k, point, node->left, pq);
@@ -299,19 +302,19 @@ void KDTree<T>::knn_internal(int k, T *point, Node *node, std::priority_queue<PQ
             this->knn_internal(k, point, node->right, pq);
             visitedLeft = false;
         }
-    }
 
-    T maxDist = pq.top().dist;
+        T maxDist = pq.top().dist;
 
-    if (maxDist > abs(point[splitDim] - node->point[splitDim]))
-    {
-        if (visitedLeft)
+        if (maxDist > abs(point[splitDim] - node->point[splitDim]))
         {
-            this->knn_internal(k, point, node->right, pq);
-        }
-        else
-        {
-            this->knn_internal(k, point, node->left, pq);
+            if (visitedLeft)
+            {
+                this->knn_internal(k, point, node->right, pq);
+            }
+            else
+            {
+                this->knn_internal(k, point, node->left, pq);
+            }
         }
     }
 }

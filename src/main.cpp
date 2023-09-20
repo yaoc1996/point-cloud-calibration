@@ -390,7 +390,9 @@ bool calibrate(LASFileStats *stats, const char *outputFile)
     LASreadOpener readOpener;
     LASwriteOpener writeOpener;
 
-    readOpener.set_file_name((const char *)stats->file.c_str());
+    std::string lasFileStr = stats->file.string();
+
+    readOpener.set_file_name(lasFileStr.c_str());
     writeOpener.set_file_name(outputFile);
 
     if (!readOpener.active() || !writeOpener.active())
@@ -435,7 +437,7 @@ bool calibrate(LASFileStats *stats, const char *outputFile)
 
 struct ComputeStatsParams
 {
-    std::filesystem::path inputFile;
+    std::string inputFile;
     int nControlPoints;
     Eigen::Vector3f *controlPoints;
     Options *options;
@@ -445,19 +447,19 @@ struct ComputeStatsParams
 
 struct CalibrateParams
 {
-    std::filesystem::path outputFile;
+    std::string outputFile;
     LASFileStats *stats;
     bool status;
 };
 
 void run_compute_file_stats(ComputeStatsParams *params)
 {
-    params->status = compute_files_stats(params->options, (const char *)params->inputFile.c_str(), params->controlPoints, params->nControlPoints, params->stats);
+    params->status = compute_files_stats(params->options, params->inputFile.c_str(), params->controlPoints, params->nControlPoints, params->stats);
 }
 
 void run_calibrate(CalibrateParams *params)
 {
-    params->status = calibrate(params->stats, (const char *)params->outputFile.c_str());
+    params->status = calibrate(params->stats, params->outputFile.c_str());
 }
 
 void summarize(const char *outputFile, std::vector<LASFileStats> &stats)
@@ -468,7 +470,7 @@ void summarize(const char *outputFile, std::vector<LASFileStats> &stats)
 
     for (int i = 0; i < stats.size(); ++i)
     {
-        outStream << stats[i].file.filename().c_str() << "," << stats[i].dz << std::endl;
+        outStream << stats[i].file.filename().string() << "," << stats[i].dz << std::endl;
     }
 
     outStream.close();
@@ -491,13 +493,13 @@ int main(int argc, const char *argv[])
 
     if (!std::filesystem::exists(inputDir))
     {
-        std::cout << "Input directory " << inputDir.c_str() << " does not exist" << std::endl;
+        std::cout << "Input directory " << inputDir.string() << " does not exist" << std::endl;
         exit(1);
     }
 
     if (!std::filesystem::exists(controlFile))
     {
-        std::cout << "Control file " << controlFile.c_str() << " does not exist" << std::endl;
+        std::cout << "Control file " << controlFile.string() << " does not exist" << std::endl;
         exit(1);
     }
 
@@ -514,23 +516,27 @@ int main(int argc, const char *argv[])
 
         if (!created)
         {
-            std::cout << "Failed to create directory " << outputDir.c_str() << "\n";
+            std::cout << "Failed to create directory " << outputDir.string() << "\n";
             exit(1);
         }
         else
         {
-            std::cout << "Created output directory " << outputDir.c_str() << "\n";
+            std::cout << "Created output directory " << outputDir.string() << "\n";
         }
     }
     else
     {
-        std::cout << "Output directory " << outputDir.c_str() << " already exists"
+        std::cout << "Output directory " << outputDir.string() << " already exists"
                   << "\n";
     }
 
     std::filesystem::path logFile = outputDir / std::filesystem::path("calibrate.log.txt");
     std::filesystem::path summaryFile = outputDir / std::filesystem::path("calibrate.summary.csv");
-    Logger logger((const char *)logFile.c_str(), false);
+
+    std::string logFileStr = logFile.string();
+    std::string summaryFileStr = summaryFile.string();
+
+    Logger logger(logFileStr.c_str(), false);
 
     logger << "Sampling rate: " << options.samplingRate << "\n";
     logger << "Angle threshold: " << (int)round(options.angleThresh * 180 / M_PI) << "deg"
@@ -562,13 +568,14 @@ int main(int argc, const char *argv[])
 
     for (int i = 0; i < inputFiles.size(); ++i)
     {
-        logger << "\t" << inputFiles[i].c_str() << "\n";
+        logger << "\t" << inputFiles[i].string() << "\n";
     }
 
     std::vector<Eigen::Vector3f> controlPoints;
-    read_control_points((const char *)controlFile.c_str(), controlPoints);
+    std::string controlFileStr = controlFile.string();
+    read_control_points(controlFileStr.c_str(), controlPoints);
 
-    logger << "Processed control points from " << controlFile.c_str() << "\n";
+    logger << "Processed control points from " << controlFileStr << "\n";
 
     std::vector<LASFileStats> fileStats(inputFiles.size());
     std::vector<ComputeStatsParams> computeStatsParams(inputFiles.size());
@@ -584,21 +591,21 @@ int main(int argc, const char *argv[])
     {
         std::filesystem::path inputFile = inputDir / inputFiles[i];
         std::string outputFileName;
-        outputFileName += (const char *)inputFiles[i].stem().c_str();
+        outputFileName += inputFiles[i].stem().string();
         outputFileName += ".calibrated";
-        outputFileName += (const char *)inputFiles[i].extension().c_str();
+        outputFileName += inputFiles[i].extension().string();
         std::filesystem::path outputFile = outputDir / std::filesystem::path(outputFileName);
 
         ComputeStatsParams *computeStatsParam = computeStatsParams.data() + i;
         computeStatsParam->options = &options;
-        computeStatsParam->inputFile = inputFile;
+        computeStatsParam->inputFile = inputFile.string();
         computeStatsParam->controlPoints = controlPoints.data();
         computeStatsParam->nControlPoints = controlPoints.size();
         computeStatsParam->stats = fileStats.data() + i;
 
         CalibrateParams *calibrateParam = calibrateParams.data() + i;
         calibrateParam->stats = fileStats.data() + i;
-        calibrateParam->outputFile = outputFile;
+        calibrateParam->outputFile = outputFile.string();
     }
 
     int ti;
@@ -630,7 +637,7 @@ int main(int argc, const char *argv[])
                 logger << "Computed stats for";
             }
 
-            logger << " " << inputFiles[i].c_str() << " (" << i + 1 << "/" << fileStats.size() << ")"
+            logger << " " << inputFiles[i].string() << " (" << i + 1 << "/" << fileStats.size() << ")"
                    << "\n";
         }
 
@@ -643,7 +650,7 @@ int main(int argc, const char *argv[])
     for (int i = 0; i < fileStats.size(); ++i)
     {
         logger << "\t" << std::left
-               << std::setw(30) << inputFiles[i].c_str()
+               << std::setw(30) << inputFiles[i].string()
                << std::setw(10) << fileStats[i].dz << "\n";
     }
 
@@ -696,7 +703,7 @@ int main(int argc, const char *argv[])
                 }
             }
 
-            logger << " " << calibrateParams[i].outputFile.c_str() << " (" << i + 1 << "/" << fileStats.size() << ")"
+            logger << " " << calibrateParams[i].outputFile << " (" << i + 1 << "/" << fileStats.size() << ")"
                    << "\n";
         }
 
@@ -708,11 +715,11 @@ int main(int argc, const char *argv[])
 
     logger.close();
 
-    std::cout << "Check " << logFile.c_str() << " for logs" << std::endl;
+    std::cout << "Check " << logFileStr << " for logs" << std::endl;
 
-    summarize((const char *)summaryFile.c_str(), fileStats);
+    summarize(summaryFileStr.c_str(), fileStats);
 
-    std::cout << "Check " << summaryFile.c_str() << " for summary stats" << std::endl;
+    std::cout << "Check " << summaryFileStr << " for summary stats" << std::endl;
 
     // computeOverlaps(fileStats, overlapGraph);
 
