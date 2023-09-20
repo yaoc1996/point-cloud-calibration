@@ -626,13 +626,18 @@ int main(int argc, const char *argv[])
 
             logger << "\t";
 
-            if (!computeStatsParams[i].status)
-            {
-                logger << "Failed to compute stats for";
+            if (computeStatsParams[i].stats->controlPointIndices.size() == 0) {
+                logger << "No control points found for";
             }
-            else
-            {
-                logger << "Computed stats for";
+            else {
+                if (!computeStatsParams[i].status)
+                {
+                    logger << "Failed to compute stats for";
+                }
+                else
+                {
+                    logger << "Computed stats for";
+                }
             }
 
             logger << " " << inputFiles[i].string() << " (" << i + 1 << "/" << fileStats.size() << ")"
